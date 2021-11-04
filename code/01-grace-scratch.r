@@ -7,8 +7,8 @@ pacman::p_load(
 options("tidylog.display" = NULL)
 
 # load mask and data
-water_mask = read_stars("data/raw/LAND_MASK.CRI.nc")
-water = read_stars("data/raw/GRCTellus.JPL.200204_202108.GLO.RL06M.MSCNv02CRI.nc") %>%
+water_mask = read_stars("data/raw/grace/LAND_MASK.CRI.nc")
+water = read_stars("data/raw/grace/GRCTellus.JPL.200204_202108.GLO.RL06M.MSCNv02CRI.nc") %>%
   slice(time, 1)
 
 # mask the data
