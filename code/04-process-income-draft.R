@@ -2,6 +2,7 @@ setwd("C:\\Users\\anton\\Dropbox\\drought")
 
 library(tidyverse)
 library(terra)
+library(dplyr)
 
 income_data <- read.csv("./data/raw/CAINC1__ALL_AREAS_1969_2020.csv")
 #Remove empty and non-helpful variables
@@ -32,12 +33,15 @@ spei_r <- crop(spei_r,e)
 #Plot income in 2018
 plot(county_v,"X2018")
 
-#To extract layer 1:
+#Look at 2018:
 layer_2018 = spei_r[[1404]]
 plot(layer_2018)
+plot(county_v, add=TRUE) #Add polygons to the top
 
-#FIRST GOAL: just find the centroid and attach the centroid to each latitude 
-#longitude square to do the first simple correlations between income and drought.
-
+spei_by_county = extract(layer_2018,county_v, mean, method = "simple", weights = TRUE)
+county_v$ID<-1:nrow(county_v)
+fips_df <- cbind(county_v$ID, county_v$GEOID)
+colnames(fips_df) <- c("ID","GEOID")
+spei_by_county <- merge(x=spei_by_county,y=fips_df,by="ID")
 
 
