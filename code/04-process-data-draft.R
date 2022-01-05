@@ -1,7 +1,7 @@
 setwd("C:\\Users\\anton\\Dropbox\\drought")
 
 #GitHub file to save dataframes to:
-folder = "C:\\Users\\anton\\Documents\\GitHub\\drought\\data\\intermediate\\"
+int_folder = "C:\\Users\\anton\\Documents\\GitHub\\drought\\data\\intermediate\\"
 
 library(tidyverse)
 library(tidyr)
@@ -99,9 +99,9 @@ for (t in 817:1416){
 }
 
 #Save files
-save(main_df, file = paste(folder, "main_df.RData", sep = "", collapse = NULL))
-save(spei_by_month, file = paste(folder, "spei_by_month.RData", sep = "", collapse = NULL))
-writeRaster(spei_r, filename = paste(folder, "spei_r.tif"))
-writeVector(county_v, filename = paste(folder, "county_v.GTiff"))
+save(main_df, file = paste(int_folder, "raw_df.RData", sep = "", collapse = NULL))
+save(spei_by_month, file = paste(int_folder, "spei_by_month.RData", sep = "", collapse = NULL))
+writeRaster(spei_r,  filename = paste(int_folder, "spei_r.tif"))
+writeVector(county_v, filename = paste(int_folder, "county_v.GTiff"))
 time_mat<-time(spei_r)
-save(time_mat, file = paste(folder, "time_mat.RData", sep = "", collapse = NULL))
+save(time_mat, file = paste(int_folder, "time_mat.RData", sep = "", collapse = NULL))
