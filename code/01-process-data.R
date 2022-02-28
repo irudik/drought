@@ -11,6 +11,9 @@ library(tidyr)
 library(terra)
 library(dplyr)
 library(lubridate)
+library(haven)
+
+################### MERGING IN BEA DATA #########################################
 
 income_data <- read.csv("./data/raw/CAINC1__ALL_AREAS_1969_2020.csv")
 
@@ -34,8 +37,6 @@ income_data$population<-income_data$population/1000000 #Population in millions
 
 #Define a dataframe to merge other data onto
 main_df<-income_data
-
-########## Check to see if NAs line up later
 
 #Add farm earnings, nonfarm earnings,  from two datasets. Note the industry definitions
 #change between the two datasets.
@@ -72,6 +73,8 @@ nonfarm_income$nonfarm_income<-as.numeric(nonfarm_income$nonfarm_income)/1000 #N
 main_df<-merge(main_df, farm_income, by=c("GeoFIPS","year"), all=TRUE)
 main_df<-merge(main_df, nonfarm_income, by=c("GeoFIPS","year"), all=TRUE)
 
+################### ADD COUNTY BORDER, CHARACTERISTICS DATA ####################
+
 #Get county border data
 
 filename<-"./data/raw/cb_2018_us_county_5m"
@@ -98,8 +101,6 @@ centroid_df<-cbind(centroid_df, lon, lat)
 centroid_df$west<-ifelse(centroid_df$lon< (-100),1,0)
 
 main_df<-merge(main_df,centroid_df, by="GeoFIPS", all=TRUE)
-
-
 
 #Make FIPS codes for average rainfall data
 rain_data <- subset(read.csv("./data/raw/110-pcp-202112-1.csv", skip = 3), select=c("Location.ID", "X1901.2000.Mean"))
@@ -130,9 +131,72 @@ employment_data<- as.data.frame(lapply(employment_data,as.numeric))
 employment_data$mean_salary<-employment_data$sum_wages/employment_data$wage_employment 
 main_df<-merge(main_df, employment_data, by=c("GeoFIPS", "year"), all=TRUE)
 
+######################### ADDING USGS DATA #####################################
+
+#This section of the code pulls out the USGS variables I am interested them,
+#combines them under the same column names, and then merges them into the full dataframe.
+
+usgs<-data.frame(matrix(ncol = 18))
+colnames<-c("GeoFIPS", "year", "PS.WGWFr", "PS.WSWFr", "DO.WGWFr", "DO.WSWFr", "IN.WGWFr", 
+            "IN.WSWFr", "PT.WGWFr", "PT.WSWFr", "MI.WGWFr", "MI.WSWFr", 
+            "LS.WGWFr", "LS.WSWFr", "IR.WGWFr", "IR.WSWFr", "TO.WGWFr", "TO.WSWFr")
+colnames(usgs)<-colnames
+
+for (year in c(1985,1990,1995, 2000,2005,2010,2015)){
+  print(year)
+  filename<-paste("us",substring(year,3,4),"co.txt",sep="")
+  df<-read.delim(paste(".\\data\\raw\\USGS\\",filename,sep=""), header=TRUE, sep="\t")
+  if (year %in% c(1985,1990)) {
+    df$GeoFIPS<-df$scode*1000+df$area
+  }else if (year == 1995) {
+    df$GeoFIPS<-df$StateCode*1000+df$CountyCode
+  } else if (year %in% c(2000,2005,2010,2015)){
+    df$GeoFIPS<-df$STATEFIPS*1000+df$COUNTYFIPS
+  }
+  df$year<-year 
+  mini<-data.frame(cbind("GeoFIPS" = df$GeoFIPS, "year" = df$year , 
+                         "PS.WGWFr" = df$ps.wgwfr, "PS.WSWFr" = df$ps.wswfr, 
+                         "DO.WGWFr" = df$do.ssgwf, "DO.WSWFr" = df$do.ssswf, 
+                         "IN.WGWFr" = df$in.wgwfr, "IN.WSWFr" = df$in.wswfr, 
+                         "PT.WGWFr" = df$pt.wgwfr, "PT.WSWFr" = df$pt.wswfr, 
+                         "MI.WGWFr" = df$mi.wgwfr, "MI.WSWFr" = df$mi.wswfr, 
+                         "LS.WGWFr" = df$ls.gwtot, "LS.WSWFr" = df$ls.swtot, 
+                         "IR.WGWFr" = df$ir.wgwfr, "IR.WSWFr" = df$ir.wswfr, 
+                         "TO.WGWFr" = df$to.gwfr, "TO.WSWFr" = df$to.swfr,
+                         "PS.WGWFr" = df$PS.WGWFr, "PS.WSWFr" = df$PS.WSWFr,
+                         "DO.WGWFr" =  df$DO.WGWFr, "DO.WSWFr" = df$DO.WSWFr, 
+                         "IN.WGWFr" = df$IN.WGWFr, "IN.WSWFr" = df$IN.WSWFr, 
+                         "PT.WGWFr" = df$PT.WGWFr, "PT.WSWFr" = df$PT.WSWFr, 
+                         "MI.WGWFr" = df$MI.WGWFr, "MI.WSWFr" = df$MI.WSWFr, 
+                         "LS.WGWFr" = df$LS.WGWFr, "LS.WSWFr" = df$LS.WSWFr,
+                         "LS.WGWFr" = df$LI.WGWFr, "LS.WSWFr" = df$LI.WSWFr, 
+                         "IR.WGWFr" = df$IR.WGWFr, "IR.WSWFr" = df$IT.WGWFr, 
+                         "IR.WGWFr" = df$IT.WGWFr, "IR.WSWFr" = df$IR.WSWFr,
+                         "TO.WGWFr" = df$TO.WGWFr, "TO.WSWFr" = df$TO.WSWFr))
+  usgs<-bind_rows(usgs, mini)
+}
+
+main_df<-merge(main_df, usgs, by=c("GeoFIPS", "year"), all=TRUE)
+
+####################### GET WATER INTENSITY DATA ###############################
+water_intensity_df<-read_dta("./data/raw/water.dta")
+#I will pull out several variables. di_win1: direct water intensity for blue
+#water. It is the cost of water use divided by the value added + cost of water
+#use, constructed by Debaere (2014) as an estimate for US 2002 water use.
+#di_win1_grbl combines green and blue direct water intensity. hendrickson is a 
+#variable that divides direct water use in 1000s of gallons by million dollars
+#of output. Multiply by output to get number of gallons.
+water_intensity_df<-water_intensity_df %>%
+  filter(iso == "AFG") %>% #Note: this is a balanced panel and all variables I am pulling have the same value for each country
+  subset(select = c(io1997,industry_description,di_win1, di_win1_grbl, hendrickson))
+
+################################################################################
+
 #Create a variable for state FIPS in main_df so I can more easily split the data
 #into states later.
 main_df$state_FIPS<-floor(main_df$GeoFIPS /1000)
+
+########################## EXPLORE DATA ########################################
 
 #There are some missing observations in the dataframe. Remove if there is no
 #geolocation given (this corresponds to no year as well)
@@ -148,6 +212,3 @@ missings_mat<-main_df[missings,]
 save(main_df, file = paste(int_folder, "main_df.RData", sep = "", collapse = NULL))
 save(centroid_df, file=paste(int_folder, "centroid.RData", sep="", collapse = NULL))
 writeVector(county_v, filename = paste(int_folder, "county_v.GTiff", sep=""))
-
-
-
