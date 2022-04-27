@@ -24,13 +24,13 @@ library(readxl)
 #of the values to be aggregated (e.g. emp~fips+year)
 sector_from_naics2<- function(df, formula) {
   df_3133<-filter(df, naics2 %in% c(31,32,33))
-  df_3133<-aggregate(formula, data = df_3133, FUN = sum)
+  df_3133<-aggregate(formula, data = df_3133, FUN = sum, na.rm = FALSE)
   df_3133$naics2 = "31-33"
   df_4445<-filter(df, naics2 %in% c(44,45))
-  df_4445<-aggregate(formula, data =df_4445, FUN = sum)
+  df_4445<-aggregate(formula, data =df_4445, FUN = sum, na.rm = FALSE)
   df_4445$naics2 = "44-45"
   df_4849<-filter(df, naics2 %in% c(48,49))
-  df_4849<-aggregate(formula, data = df_4849, FUN = sum)
+  df_4849<-aggregate(formula, data = df_4849, FUN = sum, na.rm = FALSE)
   df_4849$naics2 = "48-49"
   df_sec<-filter(df, !naics2 %in% c(31,32,33,44,45,48,49))
   df_sec<-rbind(df_sec, df_3133, df_4445, df_4849)
@@ -47,7 +47,7 @@ sector_from_naics2<- function(df, formula) {
 emp_df<-read.csv("./data/raw/efsy_panel_naics.csv")
 emp_df$naics2<-substring(emp_df$naics12,1,2)
 emp_df$fips<-emp_df$fipstate*1000+emp_df$fipscty
-emp_naics2_df<-aggregate(emp~fips+year+naics2, data=emp_df,FUN=sum)
+emp_naics2_df<-aggregate(emp~fips+year+naics2, data=emp_df,FUN=sum, na.rm = FALSE)
 #Use function to make sector-level aggregation
 emp_sec_df<-sector_from_naics2(emp_naics2_df, formula(emp~fips+year))
 #Create national employment by sector (Note: there are 3219 counties in the dataset,
@@ -67,7 +67,7 @@ not_A$year <- as.numeric(substring(not_A$year, 2))
 not_A<-subset(not_A, select = c(GeoFIPS, IndustryClassification, year, value))
 
 A<-filter(inc_69_00, IndustryClassification =="[01-02]" | IndustryClassification =="[07-09]") #SIC A is split into two groups; add these to inc
-A<-aggregate(value~GeoFIPS+year, data = A, FUN=sum)
+A<-aggregate(value~GeoFIPS+year, data = A, FUN=sum, na.rm = FALSE)
 A$IndustryClassification<-"A"
 A$year<-as.numeric(substring(A$year, 2))
 
@@ -80,7 +80,7 @@ inc_69_00_sec<-merge(x=inc_69_00,y=crosswalk,by.x="IndustryClassification",by.y=
 #Since we are looking at income, and the crosswalk has establishment, employment
 #and pay weights, I will multiply the value by the pay weights.
 inc_69_00_sec$inc = inc_69_00_sec$value * inc_69_00_sec$Pay_weight
-inc_69_00_sec = aggregate(inc ~ GeoFIPS + year + NAICS, data = inc_69_00_sec, FUN = sum)
+inc_69_00_sec = aggregate(inc ~ GeoFIPS + year + NAICS, data = inc_69_00_sec, FUN = sum, na.rm = FALSE)
 colnames(inc_69_00_sec)<-c("GeoFIPS", "year", "naics2", "inc")
 inc_69_00_sec$GeoFIPS=gsub(pattern = '\"| ', replace='', x = inc_69_00_sec$GeoFIPS)
 
@@ -93,7 +93,7 @@ inc_01_18_noag<-inc_01_18 %>%
   subset(select = c(GeoFIPS, IndustryClassification, year, value))
 inc_01_18_ag<- filter(inc_01_18, IndustryClassification %in% c("111-112","113-115")) #Keep only sectors
 inc_01_18_ag$value<-as.numeric(inc_01_18_ag$value)
-inc_01_18_ag<-aggregate(value ~ year + GeoFIPS, data = inc_01_18_ag,FUN = sum)
+inc_01_18_ag<-aggregate(value ~ year + GeoFIPS, data = inc_01_18_ag,FUN = sum, na.rm = FALSE)
 inc_01_18_ag$IndustryClassification = "11"
 inc_01_18_sec<-rbind(inc_01_18_ag, inc_01_18_noag)
 inc_01_18_sec$year = as.numeric(substring(inc_01_18_sec$year, 2))
@@ -104,6 +104,11 @@ inc_sec<-rbind(inc_69_00_sec, inc_01_18_sec)
 inc_sec$GeoFIPS<-as.numeric(inc_sec$GeoFIPS)
 sector_df<-merge(inc_sec, emp_sec_df, by.x = c("GeoFIPS", "year", "naics2"), by.y = c("fips", "year", "naics2"), all = TRUE)
 
+#Create an employ
+
+
 #Save county-level industrial information. 
 
 save(sector_df, file = paste(int_folder, "sector_df.RData", sep = "", collapse = NULL))
+
+
